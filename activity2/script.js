@@ -1,9 +1,14 @@
-// Create a name variable and test three scores stored as strings.
-const studentName = "Ariel Habawel";
-const testScores = ["74", "75", "90"];
+// Pair each student's name with a score stored as a string.
+const students = [
+    { name: "Alma", score: "74" },
+    { name: "Nora", score: "75" },
+    { name: "Fe", score: "90" }
+];
 const results = document.querySelector("#results");
 
-for (const scoreString of testScores) {
+for (const student of students) {
+    const studentName = student.name;
+    const scoreString = student.score;
     // Convert the numeric string to a number before comparing it.
     const score = Number(scoreString);
     const passed = score >= 75;
