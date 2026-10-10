@@ -3,10 +3,6 @@ name: Deploy staging
 on:
   push:
     branches: [main]
-    paths:
-      - 'index.html'
-      - 'CSS/**'
-      - '.github/workflows/deploy-staging.yml'
   workflow_dispatch:
 
 permissions:
@@ -38,6 +34,7 @@ jobs:
         shell: python
         run: |
           import os
+          import subprocess
           from ftplib import FTP
           from pathlib import Path
 
@@ -45,39 +42,48 @@ jobs:
               if not os.environ.get(name):
                   raise SystemExit(f'Add {name} to the staging environment secrets before deploying.')
 
-          source = Path('CSS')
-          if not Path('index.html').is_file() or not (source / 'index.html').is_file():
-              raise SystemExit('index.html or CSS/index.html is missing.')
+          # Publish tracked static website files while preserving their paths.
+          # Configuration, source tooling, hidden files, and credentials stay local.
+          extensions = {
+              '.html', '.htm', '.css', '.js', '.mjs', '.png', '.jpg', '.jpeg',
+              '.gif', '.svg', '.webp', '.avif', '.ico', '.woff', '.woff2',
+              '.ttf', '.otf', '.mp3', '.mp4', '.webm', '.ogg', '.wav', '.pdf',
+          }
+          excluded = {'node_modules', 'vendor', '__pycache__', 'tests', 'scripts'}
+          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          uploads = {}
+          for name in filter(None, tracked):
+              local = Path(name)
+              if any(part.startswith('.') or part in excluded for part in local.parts):
+                  continue
+              if local.suffix.lower() not in extensions:
+                  continue
+              if not local.is_file() or local.is_symlink():
+                  continue
+              parts = list(local.parts)
+              if parts[0] == 'CSS':
+                  parts[0] = 'css'
+              remote = '/'.join(parts)
+              if remote in uploads:
+                  raise SystemExit(f'Duplicate deployment path: {remote}')
+              uploads[remote] = local
+          if 'index.html' not in uploads:
+              raise SystemExit('Root index.html is missing.')
 
           with FTP() as ftp:
               ftp.connect(os.environ['FTP_SERVER'], 21, timeout=60)
               ftp.login(os.environ['FTP_USERNAME'], os.environ['FTP_PASSWORD'])
               ftp.cwd('/')
 
-              def upload(directory):
-                  for item in sorted(directory.iterdir()):
-                      if item.is_symlink() or item.name.startswith('.'):
-                          continue
-                      if item.is_dir():
-                          existing = ftp.nlst()
-                          if item.name not in [entry.rstrip('/').split('/')[-1] for entry in existing]:
-                              ftp.mkd(item.name)
-                          ftp.cwd(item.name)
-                          upload(item)
-                          ftp.cwd('..')
-                      elif item.is_file():
-                          with item.open('rb') as content:
-                              ftp.storbinary('STOR ' + item.name, content)
-                          print(f'Uploaded {item.relative_to(source)}')
-
               # Upload only; unrelated remote files are never deleted.
-              # Keep the local CSS folder, but publish it at lowercase /css/.
-              existing = ftp.nlst()
-              if 'css' not in [entry.rstrip('/').split('/')[-1] for entry in existing]:
-                  ftp.mkd('css')
-              ftp.cwd('css')
-              upload(source)
-              ftp.cwd('/')
-              with Path('index.html').open('rb') as content:
-                  ftp.storbinary('STOR index.html', content)
-              print('Uploaded root landing page')
+              for remote, local in sorted(uploads.items()):
+                  ftp.cwd('/')
+                  parts = remote.split('/')
+                  for folder in parts[:-1]:
+                      existing = ftp.nlst()
+                      if folder not in [entry.rstrip('/').split('/')[-1] for entry in existing]:
+                          ftp.mkd(folder)
+                      ftp.cwd(folder)
+                  with local.open('rb') as content:
+                      ftp.storbinary('STOR ' + parts[-1], content)
+                  print(f'Uploaded {remote}')
