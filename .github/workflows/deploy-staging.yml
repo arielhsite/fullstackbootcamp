@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'index.html'
       - 'CSS/**'
       - '.github/workflows/deploy-staging.yml'
   workflow_dispatch:
@@ -45,8 +46,8 @@ jobs:
                   raise SystemExit(f'Add {name} to the staging environment secrets before deploying.')
 
           source = Path('CSS')
-          if not (source / 'index.html').is_file():
-              raise SystemExit('CSS/index.html is missing.')
+          if not Path('index.html').is_file() or not (source / 'index.html').is_file():
+              raise SystemExit('index.html or CSS/index.html is missing.')
 
           with FTP() as ftp:
               ftp.connect(os.environ['FTP_SERVER'], 21, timeout=60)
@@ -70,4 +71,13 @@ jobs:
                           print(f'Uploaded {item.relative_to(source)}')
 
               # Upload only; unrelated remote files are never deleted.
+              # Keep the local CSS folder, but publish it at lowercase /css/.
+              existing = ftp.nlst()
+              if 'css' not in [entry.rstrip('/').split('/')[-1] for entry in existing]:
+                  ftp.mkd('css')
+              ftp.cwd('css')
               upload(source)
+              ftp.cwd('/')
+              with Path('index.html').open('rb') as content:
+                  ftp.storbinary('STOR index.html', content)
+              print('Uploaded root landing page')
