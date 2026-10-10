@@ -1,0 +1,68 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background-color: #182b24;
+    color: #ffffff;
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.7;
+}
+
+.profile-card {
+    width: 100%;
+    max-width: 640px;
+    padding: clamp(24px, 6vw, 48px);
+    background-color: #345747;
+    border: 1px solid #729180;
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgb(0 0 0 / 20%);
+    text-align: center;
+}
+
+h1 {
+    margin: 0 0 8px;
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    line-height: 1.2;
+}
+
+h2 {
+    margin: 0;
+    font-size: clamp(1.2rem, 4vw, 1.5rem);
+    letter-spacing: 0.06em;
+}
+
+h3 {
+    margin: 28px 0 10px;
+    font-size: 1rem;
+}
+
+p {
+    margin: 0;
+}
+
+button {
+    padding: 12px 28px;
+    border: 1px solid #8eac9b;
+    border-radius: 10px;
+    background-color: #426b56;
+    color: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #4c7861;
+}
+
+button:focus-visible {
+    outline: 3px solid #ffffff;
+    outline-offset: 4px;
+}
